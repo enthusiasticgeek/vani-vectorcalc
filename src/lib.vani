@@ -1,0 +1,202 @@
+// vani-vectorcalc  v0.1.0 — vector calculus: gradient/divergence/curl,
+// multi-dimensional and line integrals
+//
+// IMPORTANT — do NOT reimplement vāṇी compiler builtins.
+// Already available as builtins (call directly, never redeclare here):
+//   sin cos f64_pi()  push pop len set vec
+//
+// Depends on vani-calculus's integrate_simpson -- see [deps] in vani.toml.
+// The differential operators (gradient/divergence/curl/laplacian) do NOT
+// reuse vani-calculus: they take multivariate function pointers
+// (fn(f64,f64)->f64, fn(f64,f64,f64)->f64) that vani-calculus has no
+// equivalent of, and the central-difference formula itself is a two-line
+// expression not worth a dependency on its own.
+//
+// DESIGN DECISION — how multi-dimensional integration reuses
+// integrate_simpson without closures (decided up front): vāṇी has no
+// closures, only named top-level function pointers, so a natural-looking
+// "integrate over y for a fixed x, called from the x-loop" pattern doesn't
+// work directly (a nested integration can't capture x). The way around
+// this: vani-calculus's integrate_simpson takes a PRE-SAMPLED Vec<f64> of
+// y-values, not a function pointer -- so vc_double_integral samples f at
+// every (x_i, y_j) grid point first, runs integrate_simpson along y for
+// each row to get one value per x_i, then runs integrate_simpson again on
+// those n values along x. This is genuine nested-Simpson's-rule double
+// integration, not an approximation of the idea -- it composes
+// integrate_simpson twice for real, just via pre-sampling instead of
+// closures. vc_triple_integral and vc_line_integral_2d follow the same
+// pre-sample-then-integrate_simpson pattern.
+//
+// CALLER CONTRACT: every function taking a sample count n requires n to be
+// odd (n-1 even), matching integrate_simpson's own requirement for the
+// composite Simpson's rule -- not checked at runtime, same caller-trust
+// convention as the rest of this ecosystem.
+use "../vendor/calculus/src/lib.vani";
+
+// ── Differential operators (central finite differences, step h) ─────────────
+
+// Gradient of a scalar field f(x,y): [df/dx, df/dy].
+#[bounded_stack(bytes = 128)]
+fn vc_gradient_2d(f: fn(f64, f64) -> f64, x: f64, y: f64, h: f64) -> Vec<f64> {
+    let dfdx: f64 = (f(x + h, y) - f(x - h, y)) / (2.0 * h);
+    let dfdy: f64 = (f(x, y + h) - f(x, y - h)) / (2.0 * h);
+    let out: Vec<f64> = vec();
+    push(mut ref out, dfdx);
+    push(mut ref out, dfdy);
+    return out;
+}
+
+// Gradient of a scalar field f(x,y,z): [df/dx, df/dy, df/dz].
+#[bounded_stack(bytes = 144)]
+fn vc_gradient_3d(f: fn(f64, f64, f64) -> f64, x: f64, y: f64, z: f64, h: f64) -> Vec<f64> {
+    let dfdx: f64 = (f(x + h, y, z) - f(x - h, y, z)) / (2.0 * h);
+    let dfdy: f64 = (f(x, y + h, z) - f(x, y - h, z)) / (2.0 * h);
+    let dfdz: f64 = (f(x, y, z + h) - f(x, y, z - h)) / (2.0 * h);
+    let out: Vec<f64> = vec();
+    push(mut ref out, dfdx);
+    push(mut ref out, dfdy);
+    push(mut ref out, dfdz);
+    return out;
+}
+
+// Divergence of a 2D vector field F = (Fx, Fy): dFx/dx + dFy/dy.
+#[bounded_stack(bytes = 96)]
+fn vc_divergence_2d(Fx: fn(f64, f64) -> f64, Fy: fn(f64, f64) -> f64, x: f64, y: f64, h: f64) -> f64 {
+    let dFxdx: f64 = (Fx(x + h, y) - Fx(x - h, y)) / (2.0 * h);
+    let dFydy: f64 = (Fy(x, y + h) - Fy(x, y - h)) / (2.0 * h);
+    return dFxdx + dFydy;
+}
+
+// Divergence of a 3D vector field F = (Fx, Fy, Fz).
+#[bounded_stack(bytes = 120)]
+fn vc_divergence_3d(Fx: fn(f64, f64, f64) -> f64, Fy: fn(f64, f64, f64) -> f64, Fz: fn(f64, f64, f64) -> f64, x: f64, y: f64, z: f64, h: f64) -> f64 {
+    let dFxdx: f64 = (Fx(x + h, y, z) - Fx(x - h, y, z)) / (2.0 * h);
+    let dFydy: f64 = (Fy(x, y + h, z) - Fy(x, y - h, z)) / (2.0 * h);
+    let dFzdz: f64 = (Fz(x, y, z + h) - Fz(x, y, z - h)) / (2.0 * h);
+    return dFxdx + dFydy + dFzdz;
+}
+
+// Scalar curl of a 2D vector field F = (Fx, Fy): dFy/dx - dFx/dy.
+#[bounded_stack(bytes = 96)]
+fn vc_curl_2d(Fx: fn(f64, f64) -> f64, Fy: fn(f64, f64) -> f64, x: f64, y: f64, h: f64) -> f64 {
+    let dFydx: f64 = (Fy(x + h, y) - Fy(x - h, y)) / (2.0 * h);
+    let dFxdy: f64 = (Fx(x, y + h) - Fx(x, y - h)) / (2.0 * h);
+    return dFydx - dFxdy;
+}
+
+// Curl of a 3D vector field F = (Fx, Fy, Fz): full 3-vector.
+#[bounded_stack(bytes = 184)]
+fn vc_curl_3d(Fx: fn(f64, f64, f64) -> f64, Fy: fn(f64, f64, f64) -> f64, Fz: fn(f64, f64, f64) -> f64, x: f64, y: f64, z: f64, h: f64) -> Vec<f64> {
+    let dFzdy: f64 = (Fz(x, y + h, z) - Fz(x, y - h, z)) / (2.0 * h);
+    let dFydz: f64 = (Fy(x, y, z + h) - Fy(x, y, z - h)) / (2.0 * h);
+    let dFxdz: f64 = (Fx(x, y, z + h) - Fx(x, y, z - h)) / (2.0 * h);
+    let dFzdx: f64 = (Fz(x + h, y, z) - Fz(x - h, y, z)) / (2.0 * h);
+    let dFydx: f64 = (Fy(x + h, y, z) - Fy(x - h, y, z)) / (2.0 * h);
+    let dFxdy: f64 = (Fx(x, y + h, z) - Fx(x, y - h, z)) / (2.0 * h);
+    let out: Vec<f64> = vec();
+    push(mut ref out, dFzdy - dFydz);
+    push(mut ref out, dFxdz - dFzdx);
+    push(mut ref out, dFydx - dFxdy);
+    return out;
+}
+
+// Laplacian of a scalar field f(x,y): d^2f/dx^2 + d^2f/dy^2.
+#[bounded_stack(bytes = 96)]
+fn vc_laplacian_2d(f: fn(f64, f64) -> f64, x: f64, y: f64, h: f64) -> f64 {
+    let fc: f64 = f(x, y);
+    let d2fdx2: f64 = (f(x + h, y) - 2.0 * fc + f(x - h, y)) / (h * h);
+    let d2fdy2: f64 = (f(x, y + h) - 2.0 * fc + f(x, y - h)) / (h * h);
+    return d2fdx2 + d2fdy2;
+}
+
+// Laplacian of a scalar field f(x,y,z).
+#[bounded_stack(bytes = 112)]
+fn vc_laplacian_3d(f: fn(f64, f64, f64) -> f64, x: f64, y: f64, z: f64, h: f64) -> f64 {
+    let fc: f64 = f(x, y, z);
+    let d2fdx2: f64 = (f(x + h, y, z) - 2.0 * fc + f(x - h, y, z)) / (h * h);
+    let d2fdy2: f64 = (f(x, y + h, z) - 2.0 * fc + f(x, y - h, z)) / (h * h);
+    let d2fdz2: f64 = (f(x, y, z + h) - 2.0 * fc + f(x, y, z - h)) / (h * h);
+    return d2fdx2 + d2fdy2 + d2fdz2;
+}
+
+// ── Multi-dimensional and line integrals ─────────────────────────────────────
+
+// Double integral of f(x,y) over [ax,bx] x [ay,by], via nested Simpson's
+// rule (see file header for how this reuses vani-calculus's
+// integrate_simpson without closures). n samples per axis, must be odd.
+#[bounded_stack(bytes = 344)]
+fn vc_double_integral(f: fn(f64, f64) -> f64, ax: f64, bx: f64, ay: f64, by: f64, n: i64) -> f64 {
+    let hx: f64 = (bx - ax) / ((n - 1) as f64);
+    let hy: f64 = (by - ay) / ((n - 1) as f64);
+    let outer_samples: Vec<f64> = vec();
+    let i: i64 = 0;
+    while i < n {
+        let x: f64 = ax + (i as f64) * hx;
+        let inner_samples: Vec<f64> = vec();
+        let j: i64 = 0;
+        while j < n {
+            let y: f64 = ay + (j as f64) * hy;
+            push(mut ref inner_samples, f(x, y));
+            j = j + 1;
+        }
+        let inner_val: f64 = integrate_simpson(ay, by, ref inner_samples);
+        push(mut ref outer_samples, inner_val);
+        i = i + 1;
+    }
+    return integrate_simpson(ax, bx, ref outer_samples);
+}
+
+// Triple integral of f(x,y,z) over a box, same nested-Simpson approach as
+// vc_double_integral with one more nesting level. n samples per axis, odd.
+#[bounded_stack(bytes = 464)]
+fn vc_triple_integral(f: fn(f64, f64, f64) -> f64, ax: f64, bx: f64, ay: f64, by: f64, az: f64, bz: f64, n: i64) -> f64 {
+    let hx: f64 = (bx - ax) / ((n - 1) as f64);
+    let hy: f64 = (by - ay) / ((n - 1) as f64);
+    let hz: f64 = (bz - az) / ((n - 1) as f64);
+    let outer_samples: Vec<f64> = vec();
+    let i: i64 = 0;
+    while i < n {
+        let x: f64 = ax + (i as f64) * hx;
+        let mid_samples: Vec<f64> = vec();
+        let j: i64 = 0;
+        while j < n {
+            let y: f64 = ay + (j as f64) * hy;
+            let inner_samples: Vec<f64> = vec();
+            let k: i64 = 0;
+            while k < n {
+                let z: f64 = az + (k as f64) * hz;
+                push(mut ref inner_samples, f(x, y, z));
+                k = k + 1;
+            }
+            let inner_val: f64 = integrate_simpson(az, bz, ref inner_samples);
+            push(mut ref mid_samples, inner_val);
+            j = j + 1;
+        }
+        let mid_val: f64 = integrate_simpson(ay, by, ref mid_samples);
+        push(mut ref outer_samples, mid_val);
+        i = i + 1;
+    }
+    return integrate_simpson(ax, bx, ref outer_samples);
+}
+
+// Line integral of a 2D vector field F = (Fx, Fy) along a parametrized
+// curve r(t) = (rx(t), ry(t)) for t in [a,b], with derivative functions
+// drx/dry supplied by the caller (rather than estimated numerically, which
+// would compound two layers of finite-difference error): integral of
+// F(r(t)) . r'(t) dt, via integrate_simpson on the sampled integrand.
+// n samples, must be odd.
+#[bounded_stack(bytes = 312)]
+fn vc_line_integral_2d(Fx: fn(f64, f64) -> f64, Fy: fn(f64, f64) -> f64, rx: fn(f64) -> f64, ry: fn(f64) -> f64, drx: fn(f64) -> f64, dry: fn(f64) -> f64, a: f64, b: f64, n: i64) -> f64 {
+    let h: f64 = (b - a) / ((n - 1) as f64);
+    let samples: Vec<f64> = vec();
+    let i: i64 = 0;
+    while i < n {
+        let t: f64 = a + (i as f64) * h;
+        let px: f64 = rx(t);
+        let py: f64 = ry(t);
+        let integrand: f64 = Fx(px, py) * drx(t) + Fy(px, py) * dry(t);
+        push(mut ref samples, integrand);
+        i = i + 1;
+    }
+    return integrate_simpson(a, b, ref samples);
+}

@@ -1,0 +1,33 @@
+// Two classic multi-dimensional integration problems:
+//   1. Volume under the surface z = 4 - x^2 - y^2 above the square
+//      [-1,1] x [-1,1] (a double integral).
+//   2. Work done by a force field F = (y, -x) on a particle moving along
+//      a quarter-circle arc from (1,0) to (0,1) (a line integral).
+//
+// Run with:  vanic run examples/integration_demo.vani
+
+use "../src/lib.vani";
+
+fn paraboloid(x: f64, y: f64) -> f64 {
+    return 4.0 - x * x - y * y;
+}
+
+fn force_x(x: f64, y: f64) -> f64 { return y; }
+fn force_y(x: f64, y: f64) -> f64 { return 0.0 - x; }
+fn quarter_x(t: f64) -> f64 { return cos(t); }
+fn quarter_y(t: f64) -> f64 { return sin(t); }
+fn dquarter_x(t: f64) -> f64 { return 0.0 - sin(t); }
+fn dquarter_y(t: f64) -> f64 { return cos(t); }
+
+fn main() -> i64 {
+    let volume: f64 = vc_double_integral(paraboloid, 0.0 - 1.0, 1.0, 0.0 - 1.0, 1.0, 41);
+    print "volume under z = 4 - x^2 - y^2 over [-1,1]x[-1,1]:";
+    print volume;
+
+    let pi: f64 = f64_pi();
+    let work: f64 = vc_line_integral_2d(force_x, force_y, quarter_x, quarter_y, dquarter_x, dquarter_y, 0.0, pi / 2.0, 51);
+    print "work done by F=(y,-x) along the quarter circle from (1,0) to (0,1):";
+    print work;
+
+    return 0;
+}

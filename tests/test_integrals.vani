@@ -1,0 +1,91 @@
+// Tests for double/triple/line integrals against hand-computed closed
+// forms, plus a composed check: the 2D divergence theorem on a square --
+// the double integral of div(F) over the square must equal the sum of
+// F's outward flux across all four edges (each edge's flux computed via
+// vc_line_integral_2d, fed the constant outward-normal vector instead of
+// a tangent -- the function just integrates a dot product, so this is a
+// legitimate reuse, not a special case). Ties vc_double_integral,
+// vc_divergence_2d, and vc_line_integral_2d together in one check.
+// Run with:  vanic test tests/test_integrals.vani
+
+use "../src/lib.vani";
+
+fn close(a: f64, b: f64) -> bool {
+    return abs(a - b) < 1.0e-3;
+}
+
+fn xy_field(x: f64, y: f64) -> f64 {
+    return x * y;
+}
+
+fn xyz_field(x: f64, y: f64, z: f64) -> f64 {
+    return x * y * z;
+}
+
+fn rot_x(x: f64, y: f64) -> f64 { return 0.0 - y; }
+fn rot_y(x: f64, y: f64) -> f64 { return x; }
+fn circle_x(t: f64) -> f64 { return cos(t); }
+fn circle_y(t: f64) -> f64 { return sin(t); }
+fn dcircle_x(t: f64) -> f64 { return 0.0 - sin(t); }
+fn dcircle_y(t: f64) -> f64 { return cos(t); }
+
+// Radial field F = (x, y): div(F) = 2 everywhere.
+fn radial_x(x: f64, y: f64) -> f64 { return x; }
+fn radial_y(x: f64, y: f64) -> f64 { return y; }
+fn div_radial(x: f64, y: f64) -> f64 {
+    return vc_divergence_2d(radial_x, radial_y, x, y, 1.0e-3);
+}
+
+// Square [-1,1]x[-1,1] edges, each parametrized with t in [-1,1] and fed
+// its own constant outward-normal vector as the "derivative" argument.
+fn edge_bottom_x(t: f64) -> f64 { return t; }
+fn edge_bottom_y(t: f64) -> f64 { return 0.0 - 1.0; }
+fn normal_down_x(t: f64) -> f64 { return 0.0; }
+fn normal_down_y(t: f64) -> f64 { return 0.0 - 1.0; }
+
+fn edge_top_x(t: f64) -> f64 { return t; }
+fn edge_top_y(t: f64) -> f64 { return 1.0; }
+fn normal_up_x(t: f64) -> f64 { return 0.0; }
+fn normal_up_y(t: f64) -> f64 { return 1.0; }
+
+fn edge_right_x(t: f64) -> f64 { return 1.0; }
+fn edge_right_y(t: f64) -> f64 { return t; }
+fn normal_right_x(t: f64) -> f64 { return 1.0; }
+fn normal_right_y(t: f64) -> f64 { return 0.0; }
+
+fn edge_left_x(t: f64) -> f64 { return 0.0 - 1.0; }
+fn edge_left_y(t: f64) -> f64 { return t; }
+fn normal_left_x(t: f64) -> f64 { return 0.0 - 1.0; }
+fn normal_left_y(t: f64) -> f64 { return 0.0; }
+
+fn main() -> i64 {
+    // Double integral of x*y over [0,1]x[0,1] = 1/4.
+    let d: f64 = vc_double_integral(xy_field, 0.0, 1.0, 0.0, 1.0, 21);
+    assert close(d, 0.25);
+
+    // Triple integral of x*y*z over [0,1]^3 = 1/8.
+    let t3: f64 = vc_triple_integral(xyz_field, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 11);
+    assert close(t3, 0.125);
+
+    // Line integral of (-y, x) around the unit circle = 2*pi.
+    let pi: f64 = f64_pi();
+    let line: f64 = vc_line_integral_2d(rot_x, rot_y, circle_x, circle_y, dcircle_x, dcircle_y, 0.0, 2.0 * pi, 201);
+    assert close(line, 2.0 * pi);
+
+    // Composed 2D divergence theorem on the square [-1,1]^2:
+    //   double_integral(div F) over the square == total outward flux
+    // div(x,y) = 2 everywhere, area = 4, so the double integral is 8.
+    let div_integral: f64 = vc_double_integral(div_radial, 0.0 - 1.0, 1.0, 0.0 - 1.0, 1.0, 21);
+    assert close(div_integral, 8.0);
+
+    let flux_bottom: f64 = vc_line_integral_2d(radial_x, radial_y, edge_bottom_x, edge_bottom_y, normal_down_x, normal_down_y, 0.0 - 1.0, 1.0, 21);
+    let flux_top: f64 = vc_line_integral_2d(radial_x, radial_y, edge_top_x, edge_top_y, normal_up_x, normal_up_y, 0.0 - 1.0, 1.0, 21);
+    let flux_right: f64 = vc_line_integral_2d(radial_x, radial_y, edge_right_x, edge_right_y, normal_right_x, normal_right_y, 0.0 - 1.0, 1.0, 21);
+    let flux_left: f64 = vc_line_integral_2d(radial_x, radial_y, edge_left_x, edge_left_y, normal_left_x, normal_left_y, 0.0 - 1.0, 1.0, 21);
+    let total_flux: f64 = flux_bottom + flux_top + flux_right + flux_left;
+
+    assert close(total_flux, 8.0);
+    assert close(total_flux, div_integral);
+
+    return 0;
+}

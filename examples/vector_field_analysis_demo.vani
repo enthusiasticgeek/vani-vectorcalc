@@ -1,0 +1,51 @@
+// Analyzes a 2D vector field F = (-y, x) + a small radial component
+// (a "rotating outflow", like a whirlpool with drainage) at several
+// points: divergence (outflow rate), curl (rotation rate), and the
+// gradient/laplacian of a scalar potential field for comparison.
+//
+// Run with:  vanic run examples/vector_field_analysis_demo.vani
+
+use "../src/lib.vani";
+
+fn whirl_x(x: f64, y: f64) -> f64 {
+    return (0.0 - y) + 0.2 * x;
+}
+fn whirl_y(x: f64, y: f64) -> f64 {
+    return x + 0.2 * y;
+}
+
+fn potential(x: f64, y: f64) -> f64 {
+    return x * x * y - y * y * y / 3.0;
+}
+
+fn main() -> i64 {
+    let h: f64 = 1.0e-4;
+    let points_x: Vec<f64> = vec();
+    let points_y: Vec<f64> = vec();
+    push(mut ref points_x, 1.0); push(mut ref points_y, 0.0);
+    push(mut ref points_x, 0.0); push(mut ref points_y, 1.0);
+    push(mut ref points_x, 1.0); push(mut ref points_y, 1.0);
+
+    print "whirlpool field F = (-y + 0.2x, x + 0.2y): divergence (outflow) and curl (rotation) at 3 points:";
+    let i: i64 = 0;
+    while i < 3 {
+        let x: f64 = points_x[i];
+        let y: f64 = points_y[i];
+        print "point:";
+        print x;
+        print y;
+        print "divergence:";
+        print vc_divergence_2d(whirl_x, whirl_y, x, y, h);
+        print "curl:";
+        print vc_curl_2d(whirl_x, whirl_y, x, y, h);
+        i = i + 1;
+    }
+
+    print "scalar potential field's gradient and laplacian at (1,2):";
+    let g: Vec<f64> = vc_gradient_2d(potential, 1.0, 2.0, h);
+    print g[0];
+    print g[1];
+    print vc_laplacian_2d(potential, 1.0, 2.0, h);
+
+    return 0;
+}

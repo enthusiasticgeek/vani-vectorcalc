@@ -1,0 +1,94 @@
+// Tests for the differential operators (gradient, divergence, curl,
+// laplacian), against hand-computed analytic values, plus a composed
+// vector-calculus identity check: curl(grad f) = 0 for any scalar field.
+// Run with:  vanic test tests/test_diffops.vani
+
+use "../src/lib.vani";
+
+fn close(a: f64, b: f64) -> bool {
+    return abs(a - b) < 1.0e-4;
+}
+
+fn field_xy2(x: f64, y: f64) -> f64 {
+    return x * x * y;
+}
+
+fn field_sumsq3(x: f64, y: f64, z: f64) -> f64 {
+    return x * x + y * y + z * z;
+}
+
+fn field_sumsq2(x: f64, y: f64) -> f64 {
+    return x * x + y * y;
+}
+
+fn rot2_x(x: f64, y: f64) -> f64 { return 0.0 - y; }
+fn rot2_y(x: f64, y: f64) -> f64 { return x; }
+
+fn div2_x(x: f64, y: f64) -> f64 { return x * x; }
+fn div2_y(x: f64, y: f64) -> f64 { return y * y; }
+
+fn const3_x(x: f64, y: f64, z: f64) -> f64 { return x; }
+fn const3_y(x: f64, y: f64, z: f64) -> f64 { return y; }
+fn const3_z(x: f64, y: f64, z: f64) -> f64 { return z; }
+
+fn rot3_x(x: f64, y: f64, z: f64) -> f64 { return 0.0 - y; }
+fn rot3_y(x: f64, y: f64, z: f64) -> f64 { return x; }
+fn rot3_z(x: f64, y: f64, z: f64) -> f64 { return 0.0; }
+
+// grad_x/grad_y wrap vc_gradient_2d's components as scalar fields so the
+// curl(grad f) = 0 identity below can be checked with vc_curl_2d directly.
+fn saddle_field(x: f64, y: f64) -> f64 {
+    return x * x - y * y;
+}
+fn saddle_grad_x(x: f64, y: f64) -> f64 {
+    let g: Vec<f64> = vc_gradient_2d(saddle_field, x, y, 1.0e-3);
+    return g[0];
+}
+fn saddle_grad_y(x: f64, y: f64) -> f64 {
+    let g: Vec<f64> = vc_gradient_2d(saddle_field, x, y, 1.0e-3);
+    return g[1];
+}
+
+fn main() -> i64 {
+    let h: f64 = 1.0e-3;
+
+    // grad(x^2 y) at (2,3) = (2xy, x^2) = (12, 4).
+    let g2: Vec<f64> = vc_gradient_2d(field_xy2, 2.0, 3.0, h);
+    assert close(g2[0], 12.0);
+    assert close(g2[1], 4.0);
+
+    // grad(x^2+y^2+z^2) at (1,2,3) = (2,4,6).
+    let g3: Vec<f64> = vc_gradient_3d(field_sumsq3, 1.0, 2.0, 3.0, h);
+    assert close(g3[0], 2.0);
+    assert close(g3[1], 4.0);
+    assert close(g3[2], 6.0);
+
+    // div(x^2, y^2) at (1,2) = 2x + 2y = 2 + 4 = 6.
+    assert close(vc_divergence_2d(div2_x, div2_y, 1.0, 2.0, h), 6.0);
+
+    // div(x,y,z) = 3 everywhere.
+    assert close(vc_divergence_3d(const3_x, const3_y, const3_z, 5.0, 5.0, 5.0, h), 3.0);
+
+    // curl2d(-y, x) = 2 everywhere (rigid rotation field).
+    assert close(vc_curl_2d(rot2_x, rot2_y, 1.0, 1.0, h), 2.0);
+
+    // curl3d(-y, x, 0) = (0, 0, 2) everywhere.
+    let c3: Vec<f64> = vc_curl_3d(rot3_x, rot3_y, rot3_z, 1.0, 1.0, 1.0, h);
+    assert close(c3[0], 0.0);
+    assert close(c3[1], 0.0);
+    assert close(c3[2], 2.0);
+
+    // laplacian(x^2+y^2) = 4 everywhere.
+    assert close(vc_laplacian_2d(field_sumsq2, 1.0, 1.0, h), 4.0);
+
+    // laplacian(x^2+y^2+z^2) = 6 everywhere.
+    assert close(vc_laplacian_3d(field_sumsq3, 1.0, 1.0, 1.0, h), 6.0);
+
+    // Composed vector-calculus identity: curl(grad f) = 0 for any scalar
+    // field f -- not a hand-picked expected value, a fundamental identity
+    // that composes vc_gradient_2d and vc_curl_2d together.
+    let curl_of_grad: f64 = vc_curl_2d(saddle_grad_x, saddle_grad_y, 0.7, 0.3, h);
+    assert abs(curl_of_grad) < 1.0e-2;
+
+    return 0;
+}
