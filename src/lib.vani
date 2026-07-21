@@ -30,8 +30,8 @@
 // CALLER CONTRACT: every function taking a sample count n requires n to be
 // odd (n-1 even), matching integrate_simpson's own requirement for the
 // composite Simpson's rule -- not checked at runtime, same caller-trust
-// convention as the rest of this ecosystem.
-use "../vendor/calculus/src/lib.vani";
+// convention as the rest of this ecosystem. No `use` statement needed:
+// vanic auto-includes every [deps] entry's source before compiling.
 
 // ── Differential operators (central finite differences, step h) ─────────────
 
