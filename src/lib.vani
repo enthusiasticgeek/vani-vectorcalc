@@ -161,11 +161,11 @@ fn vc_double_integral(f: fn(f64, f64) -> f64, ax: f64, bx: f64, ay: f64, by: f64
             push(mut ref inner_samples, f(x, y));
             j = j + 1;
         }
-        let inner_val: f64 = integrate_simpson(ay, by, ref inner_samples);
+        let inner_val: f64 = calculus::integrate_simpson(ay, by, ref inner_samples);
         push(mut ref outer_samples, inner_val);
         i = i + 1;
     }
-    return integrate_simpson(ax, bx, ref outer_samples);
+    return calculus::integrate_simpson(ax, bx, ref outer_samples);
 }
 
 // Triple integral of f(x,y,z) over a box, same nested-Simpson approach as
@@ -192,15 +192,15 @@ fn vc_triple_integral(f: fn(f64, f64, f64) -> f64, ax: f64, bx: f64, ay: f64, by
                 push(mut ref inner_samples, f(x, y, z));
                 k = k + 1;
             }
-            let inner_val: f64 = integrate_simpson(az, bz, ref inner_samples);
+            let inner_val: f64 = calculus::integrate_simpson(az, bz, ref inner_samples);
             push(mut ref mid_samples, inner_val);
             j = j + 1;
         }
-        let mid_val: f64 = integrate_simpson(ay, by, ref mid_samples);
+        let mid_val: f64 = calculus::integrate_simpson(ay, by, ref mid_samples);
         push(mut ref outer_samples, mid_val);
         i = i + 1;
     }
-    return integrate_simpson(ax, bx, ref outer_samples);
+    return calculus::integrate_simpson(ax, bx, ref outer_samples);
 }
 
 // Line integral of a 2D vector field F = (Fx, Fy) along a parametrized
@@ -225,5 +225,5 @@ fn vc_line_integral_2d(Fx: fn(f64, f64) -> f64, Fy: fn(f64, f64) -> f64, rx: fn(
         push(mut ref samples, integrand);
         i = i + 1;
     }
-    return integrate_simpson(a, b, ref samples);
+    return calculus::integrate_simpson(a, b, ref samples);
 }
