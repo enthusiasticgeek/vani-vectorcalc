@@ -227,3 +227,28 @@ fn vc_line_integral_2d(Fx: fn(f64, f64) -> f64, Fy: fn(f64, f64) -> f64, rx: fn(
     }
     return calculus::integrate_simpson(a, b, ref samples);
 }
+
+// Line integral of a 3D vector field F = (Fx, Fy, Fz) along a
+// parametrized curve r(t) = (rx(t), ry(t), rz(t)) for t in [a,b], with
+// derivative functions drx/dry/drz supplied by the caller (same
+// rationale as vc_line_integral_2d): integral of F(r(t)) . r'(t) dt, via
+// integrate_simpson on the sampled integrand. n samples, must be odd.
+// NO #[wcet]: the while loop runs n times, a runtime parameter -- WCET =
+// 20 + n*(6 indirect calls + a few ops) + integrate_simpson's own cost
+// over n samples.
+#[bounded_stack(bytes = 344)]
+fn vc_line_integral_3d(Fx: fn(f64, f64, f64) -> f64, Fy: fn(f64, f64, f64) -> f64, Fz: fn(f64, f64, f64) -> f64, rx: fn(f64) -> f64, ry: fn(f64) -> f64, rz: fn(f64) -> f64, drx: fn(f64) -> f64, dry: fn(f64) -> f64, drz: fn(f64) -> f64, a: f64, b: f64, n: i64) -> f64 {
+    let h: f64 = (b - a) / ((n - 1) as f64);
+    let samples: Vec<f64> = vec();
+    let i: i64 = 0;
+    while i < n {
+        let t: f64 = a + (i as f64) * h;
+        let px: f64 = rx(t);
+        let py: f64 = ry(t);
+        let pz: f64 = rz(t);
+        let integrand: f64 = Fx(px, py, pz) * drx(t) + Fy(px, py, pz) * dry(t) + Fz(px, py, pz) * drz(t);
+        push(mut ref samples, integrand);
+        i = i + 1;
+    }
+    return calculus::integrate_simpson(a, b, ref samples);
+}

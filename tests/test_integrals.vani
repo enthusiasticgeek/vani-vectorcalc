@@ -29,6 +29,19 @@ fn circle_y(t: f64) -> f64 { return sin(t); }
 fn dcircle_x(t: f64) -> f64 { return 0.0 - sin(t); }
 fn dcircle_y(t: f64) -> f64 { return cos(t); }
 
+// F = (-y, x, 1) along the helix r(t) = (cos t, sin t, t), t in [0, 2pi]:
+// F.r'(t) = y*sin(t) + x*cos(t) + 1 = sin^2(t) + cos^2(t) + 1 = 2
+// everywhere, so the exact line integral is 2 * 2pi = 4pi.
+fn helix_field_x(x: f64, y: f64, z: f64) -> f64 { return 0.0 - y; }
+fn helix_field_y(x: f64, y: f64, z: f64) -> f64 { return x; }
+fn helix_field_z(x: f64, y: f64, z: f64) -> f64 { return 1.0; }
+fn helix_x(t: f64) -> f64 { return cos(t); }
+fn helix_y(t: f64) -> f64 { return sin(t); }
+fn helix_z(t: f64) -> f64 { return t; }
+fn dhelix_x(t: f64) -> f64 { return 0.0 - sin(t); }
+fn dhelix_y(t: f64) -> f64 { return cos(t); }
+fn dhelix_z(t: f64) -> f64 { return 1.0; }
+
 // Radial field F = (x, y): div(F) = 2 everywhere.
 fn radial_x(x: f64, y: f64) -> f64 { return x; }
 fn radial_y(x: f64, y: f64) -> f64 { return y; }
@@ -71,6 +84,12 @@ fn main() -> i64 {
     let pi: f64 = f64_pi();
     let line: f64 = vc_line_integral_2d(rot_x, rot_y, circle_x, circle_y, dcircle_x, dcircle_y, 0.0, 2.0 * pi, 201);
     assert close(line, 2.0 * pi);
+
+    // Line integral of (-y, x, 1) along the helix r(t)=(cos t, sin t, t)
+    // over t in [0, 2pi] = 4*pi (exact closed form, see helix_field_*'s
+    // comment).
+    let line3: f64 = vc_line_integral_3d(helix_field_x, helix_field_y, helix_field_z, helix_x, helix_y, helix_z, dhelix_x, dhelix_y, dhelix_z, 0.0, 2.0 * pi, 201);
+    assert close(line3, 4.0 * pi);
 
     // Composed 2D divergence theorem on the square [-1,1]^2:
     //   double_integral(div F) over the square == total outward flux

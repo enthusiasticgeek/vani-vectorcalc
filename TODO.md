@@ -57,13 +57,27 @@
 
 ---
 
+## v0.1.4 (2026-07-27)
+
+- [x] `vc_line_integral_3d` -- direct extension of `vc_line_integral_2d`
+      to a 3D vector field F = (Fx, Fy, Fz) along a parametrized curve
+      r(t) = (rx(t), ry(t), rz(t)), same pre-sample-then-
+      `integrate_simpson` pattern, caller-supplied derivative functions
+      (not numerically estimated, for the same reason as the 2D version).
+      `#[bounded_stack(bytes = 344)]`, `vanic check`'s exact reported
+      worst-case.
+- [x] `tests/test_integrals.vani` extended: line integral of F=(-y,x,1)
+      along the helix r(t)=(cos t, sin t, t) over t in [0, 2pi] -- exact
+      closed form 4*pi (F.r'(t) = sin^2(t) + cos^2(t) + 1 = 2 everywhere).
+      Full suite + `vanic audit-safety` re-verified on both backends.
+
 ## Future
 
 No v0.2.0 is currently planned. Candidates if a concrete need shows up:
-`vc_line_integral_3d` (only 2D exists in v0.1.0), surface integrals (need
-a parametrized surface and the cross product of partial derivatives for
-the area element -- meaningfully harder design surface than what's here),
-and non-rectangular integration domains (`vc_double_integral`/
-`vc_triple_integral` only cover axis-aligned boxes; the divergence-theorem
-test in `tests/test_integrals.vani` works around this for a square by
-summing four edge line integrals rather than integrating over a disk).
+surface integrals (need a parametrized surface and the cross product of
+partial derivatives for the area element -- meaningfully harder design
+surface than what's here), and non-rectangular integration domains
+(`vc_double_integral`/`vc_triple_integral` only cover axis-aligned boxes;
+the divergence-theorem test in `tests/test_integrals.vani` works around
+this for a square by summing four edge line integrals rather than
+integrating over a disk).
