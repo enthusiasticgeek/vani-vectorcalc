@@ -1,6 +1,6 @@
 # vani-vectorcalc
 
-Vector calculus library for the [vāṇी compiler](https://github.com/enthusiasticgeek/vani-compiler):
+Vector calculus library for the [vāṇī compiler](https://github.com/enthusiasticgeek/vani-compiler):
 gradient, divergence, curl, Laplacian, and multi-dimensional/line integrals.
 
 Depends on [vani-calculus](https://github.com/enthusiasticgeek/vani-calculus)'s
@@ -30,7 +30,7 @@ vanic build
 
 ## How multi-dimensional integration reuses vani-calculus without closures
 
-vāṇी has no closures — only named top-level function pointers — so the
+vāṇī has no closures — only named top-level function pointers — so the
 natural-looking "integrate over y for a fixed x, called from an x-loop"
 pattern doesn't work directly (a nested integration can't capture `x`).
 The way around this: vani-calculus's `integrate_simpson` takes a
@@ -65,7 +65,7 @@ isolation:
 
 ## What this library does NOT provide
 
-These are already vāṇी compiler builtins — call them directly, no import needed:
+These are already vāṇī compiler builtins — call them directly, no import needed:
 
 `sin` `cos` `f64_pi()` `push` `pop` `len` `set` `vec`
 

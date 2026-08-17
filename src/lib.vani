@@ -1,7 +1,7 @@
 // vani-vectorcalc  v0.1.0 — vector calculus: gradient/divergence/curl,
 // multi-dimensional and line integrals
 //
-// IMPORTANT — do NOT reimplement vāṇी compiler builtins.
+// IMPORTANT — do NOT reimplement vāṇī compiler builtins.
 // Already available as builtins (call directly, never redeclare here):
 //   sin cos f64_pi()  push pop len set vec
 //
@@ -13,7 +13,7 @@
 // expression not worth a dependency on its own.
 //
 // DESIGN DECISION — how multi-dimensional integration reuses
-// integrate_simpson without closures (decided up front): vāṇी has no
+// integrate_simpson without closures (decided up front): vāṇī has no
 // closures, only named top-level function pointers, so a natural-looking
 // "integrate over y for a fixed x, called from the x-loop" pattern doesn't
 // work directly (a nested integration can't capture x). The way around

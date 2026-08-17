@@ -25,7 +25,7 @@
 ### Multi-dimensional / line integrals (3 functions)
 - [x] `vc_double_integral`, `vc_triple_integral` -- nested Simpson's rule
       via vani-calculus's `integrate_simpson` (pre-sampled, not a function
-      pointer -- see README for why, vāṇी has no closures). Validated
+      pointer -- see README for why, vāṇī has no closures). Validated
       against `∫∫xy` over the unit square and `∫∫∫xyz` over the unit cube
 - [x] `vc_line_integral_2d` -- validated against a rotational field's
       circulation around the unit circle (`= 2π`)
