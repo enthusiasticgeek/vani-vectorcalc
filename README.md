@@ -6,6 +6,8 @@ gradient, divergence, curl, Laplacian, and multi-dimensional/line integrals.
 Depends on [vani-calculus](https://github.com/enthusiasticgeek/vani-calculus)'s
 `integrate_simpson`.
 
+**API reference / tutorial:** <https://enthusiasticgeek.github.io/vani-vectorcalc/>
+
 ## Add to your project
 
 ```toml
